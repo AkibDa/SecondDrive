@@ -94,19 +94,19 @@ The machine learning model in SecondDrive undergoes a robust training process:
 
     * Missing values are handled (e.g., imputation or removal).
 
-Outliers are identified and treated.
+    * Outliers are identified and treated.
 
-Irrelevant features are dropped.
+    * Irrelevant features are dropped.
 
 * Feature Engineering:
 
-Categorical features are identified.
+    * Categorical features are identified.
 
-One-hot encoding is applied to convert categorical data into a numerical format suitable for machine learning algorithms.
+    * One-hot encoding is applied to convert categorical data into a numerical format suitable for machine learning algorithms.
 
 * Target Transformation:
 
-The price_usd target variable is log-transformed using np.log1p() to reduce skewness and stabilize variance.
+    * The price_usd target variable is log-transformed using np.log1p() to reduce skewness and stabilize variance.
 
 * Data Splitting: The dataset is split into training and testing sets to evaluate model performance on unseen data.
 
