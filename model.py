@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 
 df = pd.read_csv('used_car_price_dataset_extended.csv')
 
@@ -46,3 +47,15 @@ def evaluate_model(y_true, y_pred):
   print(f"RMSE: {np.sqrt(mean_squared_error(y_true, y_pred)):.2f}")
   print(f"R² Score: {r2_score(y_true, y_pred):.2f}")
 
+model_1 = LinearRegression()
+model_1.fit(X_train, y_train)
+y_pred_1 = model_1.predict(X_test)
+
+model_2 = RandomForestRegressor(random_state=42)
+model_2.fit(X_train, y_train)
+y_pred_2 = model_2.predict(X_test)
+
+evaluate_model(y_test, y_pred_1)
+print(model_1.score(X_test, y_test))
+evaluate_model(y_test, y_pred_2)
+print(model_2.score(X_test, y_test))
