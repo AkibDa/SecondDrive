@@ -59,3 +59,35 @@ evaluate_model(y_test, y_pred_1)
 print(model_1.score(X_test, y_test))
 evaluate_model(y_test, y_pred_2)
 print(model_2.score(X_test, y_test))
+
+coefficients = pd.Series(model_1.coef_, index=X.columns)
+coefficients = coefficients.sort_values(key=abs, ascending=False)
+print(coefficients)
+
+# Recreate cleaned X and drop weak features
+features_to_drop = [
+    'brand_Volkswagen',
+    'transmission_Manual',
+    'color_White',
+    'fuel_type_Petrol',
+    'accidents_reported',
+    'service_history_Partial'
+]
+
+X_cleaned = X.drop(columns=features_to_drop)
+
+# Now split X_cleaned and y to get matching shapes
+X_train_cleaned, X_test_cleaned, y_train, y_test = train_test_split(
+    X_cleaned, y, test_size=0.2, random_state=42
+)
+
+# Fit the model on the cleaned, properly-split data
+
+model_clean = LinearRegression()
+model_clean.fit(X_train_cleaned, y_train)
+
+# Predict and evaluate
+y_pred_clean = model_clean.predict(X_test_cleaned)
+
+evaluate_model(y_test, y_pred_clean)
+print(model_clean.score(X_test_cleaned, y_test))
