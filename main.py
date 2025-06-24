@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-
+import numpy as np
 
 # Load data and models (cached for performance)
 @st.cache_data
@@ -9,7 +9,8 @@ def load_data():
   df = pd.read_csv('used_car_price_dataset_extended.csv')
   model = joblib.load('car_price_model_accurate.pkl')
   scaler = joblib.load('scaler.pkl')
-  return df, model, scaler
+  feature_names = joblib.load('feature_names.pkl')
+  return df, model, scaler, feature_names
 
 
 def get_available_categories(model, prefix):
@@ -25,8 +26,8 @@ def safe_category_selectbox(name, prefix, model):
     return None
 
 
-def check_price_tab(df, model, scaler):
-  st.header("Car Price Estimator")
+def check_price_tab(df, model, scaler, feature_names):
+  st.header("🚗 Car Price Estimator")
 
   # Get available brands
   available_brands = get_available_categories(model, 'brand_')
@@ -36,36 +37,39 @@ def check_price_tab(df, model, scaler):
   col1, col2 = st.columns(2)
 
   with col1:
-    year = st.number_input("Year", min_value=1900, max_value=2023, value=2015)
+    year = st.number_input("Make Year", min_value=1900, max_value=2025, value=2015)
     cc = st.number_input("Engine CC", min_value=500, max_value=10000, value=1500)
     mileage = st.number_input("Mileage (kmpl)", min_value=0.0, max_value=100.0, value=15.0)
 
   with col2:
-    owners = st.number_input("Number of previous owners", min_value=0, max_value=10, value=1)
-    accidents = st.number_input("Number of accidents reported", min_value=0, max_value=10, value=0)
-    insurance = st.radio("Is insurance valid?", ["Yes", "No"], index=0)
+    owners = st.number_input("Number of Previous Owners", min_value=0, max_value=10, value=1)
+    accidents = st.number_input("Number of Accidents Reported", min_value=0, max_value=10, value=0)
+    insurance = st.radio("Is Insurance Valid?", ["Yes", "No"], index=0)
 
-  # Category inputs
+  # Safe category inputs
   transmission = safe_category_selectbox('transmission', 'transmission_', model)
   fuel_type = safe_category_selectbox('fuel type', 'fuel_type_', model)
   color = safe_category_selectbox('color', 'color_', model)
   service = safe_category_selectbox('service history', 'service_history_', model)
 
   if st.button("Estimate Price"):
-    # Build model input dict
-    expected_features = model.feature_names_in_
-    input_dict = {feature: 0 for feature in expected_features}
+    input_dict = {feature: 0 for feature in feature_names}
 
-    # Fill numeric fields
-    input_dict['make_year'] = year
+    # Engineered features
+    car_age = 2025 - year
+    input_dict['car_age'] = car_age
     input_dict['engine_cc'] = cc
     input_dict['mileage_kmpl'] = mileage
     input_dict['owner_count'] = owners
-    if 'accidents_reported' in expected_features:
-      input_dict['accidents_reported'] = accidents
+    input_dict['accidents_reported'] = accidents if 'accidents_reported' in feature_names else 0
 
-    # One-hot fields
-    for feature in expected_features:
+    if 'engine_per_age' in feature_names:
+      input_dict['engine_per_age'] = cc / (car_age + 1)
+    if 'mileage_per_owner' in feature_names:
+      input_dict['mileage_per_owner'] = mileage / (owners + 1)
+
+    # One-hot encode
+    for feature in feature_names:
       if feature == f'brand_{brand}':
         input_dict[feature] = 1
       elif fuel_type and feature == f'fuel_type_{fuel_type}':
@@ -76,22 +80,20 @@ def check_price_tab(df, model, scaler):
         input_dict[feature] = 1
       elif service and feature == f'service_history_{service}':
         input_dict[feature] = 1
-      elif feature == 'insurance_valid_Yes':
-        input_dict[feature] = 1 if insurance == "Yes" else 0
+      elif feature == 'insurance_valid_yes':
+        input_dict[feature] = 1 if insurance.lower() == "yes" else 0
 
-    # Create input DataFrame
-    input_df = pd.DataFrame([[input_dict[f] for f in expected_features]], columns=expected_features)
+    # DataFrame & scale numeric columns
+    input_df = pd.DataFrame([[input_dict[f] for f in feature_names]], columns=feature_names)
+    numeric_cols = ['mileage_kmpl', 'engine_cc', 'car_age', 'engine_per_age', 'mileage_per_owner']
+    scaled = [col for col in numeric_cols if col in input_df.columns]
+    input_df[scaled] = scaler.transform(input_df[scaled])
 
-    # Scale numeric columns
-    numeric_to_scale = ['mileage_kmpl', 'engine_cc', 'car_age'] if 'car_age' in expected_features else ['mileage_kmpl',
-                                                                                                        'engine_cc',
-                                                                                                        'make_year']
-    input_df[numeric_to_scale] = scaler.transform(input_df[numeric_to_scale])
+    # Predict and inverse log transform
+    log_price = model.predict(input_df)[0]
+    price = np.expm1(log_price)
 
-    # Predict price
-    predicted_price = model.predict(input_df)[0]
-    st.success(f"💰 Estimated Resale Price: ${predicted_price:,.2f}")
-
+    st.success(f"💰 Estimated Resale Price: ${price:,.2f}")
 
 def suggest_car_tab(df):
   st.header("Car Recommendation System")
@@ -148,13 +150,13 @@ def main():
   st.title("🚗 Used Car Price Estimator & Recommender")
 
   # Load data and models
-  df, model, scaler = load_data()
+  df, model, scaler, feature_names = load_data()
 
   # Create tabs
   tab1, tab2 = st.tabs(["Price Estimator", "Car Recommender"])
 
   with tab1:
-    check_price_tab(df, model, scaler)
+    check_price_tab(df, model, scaler, feature_names)
 
   with tab2:
     suggest_car_tab(df)
