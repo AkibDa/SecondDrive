@@ -26,30 +26,34 @@ for col in categorical_cols:
 # ------------------------------
 # 🛠️ 2. Feature Engineering
 # ------------------------------
+df = df[df['price_usd'] < df['price_usd'].quantile(0.99)]  # Remove top 1% outliers
+
+# Add useful derived features
 df['car_age'] = 2025 - df['make_year']
-df.drop(columns=['make_year'], inplace=True)
+df['engine_per_age'] = df['engine_cc'] / df['car_age'].replace(0, 1)
+df['mileage_per_owner'] = df['mileage_kmpl'] / (df['owner_count'] + 1)
 
 # Log-transform the target
 df['log_price'] = np.log1p(df['price_usd'])
+
+# Drop original year column
+df.drop(columns=['make_year'], inplace=True)
 
 # One-hot encode categoricals
 df = pd.get_dummies(df, drop_first=True)
 
 # ---------------------------------------
-# 🧼 3. Prepare Features and Scaling
+# 🪜 3. Prepare Features and Scaling
 # ---------------------------------------
 target = 'log_price'
-scaled_cols = ['mileage_kmpl', 'engine_cc', 'car_age']
+scaled_cols = ['mileage_kmpl', 'engine_cc', 'car_age', 'engine_per_age', 'mileage_per_owner']
 
-# Scale only relevant numeric columns
 scaler = StandardScaler()
 df[scaled_cols] = scaler.fit_transform(df[scaled_cols])
 
-# Drop unused columns (brand, transmission, etc. already one-hot encoded)
 X = df.drop(columns=['price_usd', 'log_price'])
 y = df['log_price']
 
-# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # ---------------------------------------
@@ -78,7 +82,7 @@ def evaluate_model_log(y_true_log, y_pred_log):
 y_pred_log = best_model.predict(X_test)
 evaluate_model_log(y_test, y_pred_log)
 
-# Optional: Check feature importance
+# Show top features
 importances = pd.Series(best_model.feature_importances_, index=X.columns)
 print("\nTop Features:")
 print(importances.sort_values(ascending=False).head(10))
@@ -88,3 +92,4 @@ print(importances.sort_values(ascending=False).head(10))
 # ---------------------------------------
 joblib.dump(best_model, 'car_price_model_accurate.pkl')
 joblib.dump(scaler, 'scaler.pkl')
+joblib.dump(list(X.columns), 'feature_names.pkl')
