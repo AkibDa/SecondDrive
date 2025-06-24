@@ -92,7 +92,7 @@ The machine learning model in SecondDrive undergoes a robust training process:
 
 * Data Preprocessing:
 
-Missing values are handled (e.g., imputation or removal).
+    ** Missing values are handled (e.g., imputation or removal).
 
 Outliers are identified and treated.
 
