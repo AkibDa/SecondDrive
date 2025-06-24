@@ -91,3 +91,6 @@ y_pred_clean = model_clean.predict(X_test_cleaned)
 
 evaluate_model(y_test, y_pred_clean)
 print(model_clean.score(X_test_cleaned, y_test))
+
+import joblib
+joblib.dump(model_clean, 'car_price_predictor.pkl')
